@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#102d49">
+<title>Orbit Foundry</title>
+<style>
+:root{color-scheme:dark;--bg:#091421;--panel:#122235;--line:#294158;--muted:#a9bacb;--text:#f4f8fc;--blue:#246ca4}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at top,#173653 0,#091421 58%);color:var(--text);font:16px system-ui,-apple-system,Segoe UI,sans-serif;padding:18px 14px 34px}
+main{max-width:720px;margin:auto;display:grid;gap:13px}.panel{background:rgba(18,34,53,.96);border:1px solid var(--line);border-radius:16px;padding:14px;box-shadow:0 8px 24px #0002}
+.hero{background:linear-gradient(130deg,#102d49,#17243b);border:0}.top{display:flex;justify-content:space-between;align-items:center;gap:10px}.eyebrow{font-size:11px;letter-spacing:2px;opacity:.72}.title{font-size:23px;font-weight:800}.sat{font-size:36px}.label{font-size:13px;color:var(--muted)}.big{font-size:36px;font-weight:850;letter-spacing:-1.5px}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:10px}.stat strong{display:block;font-size:23px;margin-top:3px}
+button{font:inherit;color:var(--text);background:#1b3046;border:1px solid #36516b;border-radius:11px;padding:11px 12px;cursor:pointer}button:disabled{opacity:.42;cursor:not-allowed}.primary{width:100%;background:linear-gradient(135deg,#246ca4,#153d67);border:0;padding:20px 12px;font-size:19px;font-weight:800}.primary .asteroid{font-size:38px;display:block}.muted{color:var(--muted)}.small{font-size:12px}.sectionhead{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px;font-weight:800}.item{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 0;border-top:1px solid #294158}.item:first-child{border-top:0}.iteminfo{min-width:0}.itemname{font-weight:700}.itemdesc{font-size:12px;color:var(--muted);margin-top:2px}.buy{min-width:118px;text-align:center;font-size:13px;font-weight:700}.bar{height:8px;background:#294158;border-radius:8px;overflow:hidden;margin-top:12px}.fill{height:100%;width:0;background:#55a8e8;transition:width .2s}.footer{display:flex;justify-content:space-between;align-items:center;gap:8px}.footer button{font-size:12px;padding:7px 9px}.log{min-height:38px}.hidden{display:none}
+@media(max-width:420px){body{padding:10px}.panel{padding:12px}.big{font-size:32px}.buy{min-width:104px;padding:9px 6px}}
+</style>
+</head>
+<body>
+<main>
+<section class="panel hero">
+ <div class="top"><div><div class="eyebrow">ORBITAL SALVAGE NETWORK</div><div class="title">Command Deck</div></div><div class="sat">🛰️</div></div>
+ <div class="label" style="margin-top:18px">AVAILABLE SCRAP</div><div class="big" id="scrap">0</div>
+ <div class="top label"><span id="rate">0 scrap / sec</span><span id="sector-name">Earth Orbit</span></div>
+</section>
+<section class="panel" style="text-align:center">
+ <div class="label" style="margin-bottom:9px">TAP TO SALVAGE</div>
+ <button class="primary" id="salvage"><span class="asteroid">🪨</span>EXTRACT ASTEROID<div class="small" id="tap-power" style="font-weight:400;margin-top:5px">+1 scrap per tap</div></button>
+ <div class="small muted" style="margin-top:9px">Lifetime recovered: <span id="lifetime">0</span> scrap</div>
+</section>
+<div class="stats">
+ <section class="panel stat"><div class="label">FLEET SIZE</div><strong id="fleet">0</strong></section>
+ <section class="panel stat"><div class="label">SECTORS EXPLORED</div><strong id="expeditions">1 / 4</strong></section>
+</div>
+<section class="panel"><div class="sectionhead"><span>🏭 Salvage facilities</span><span class="small muted">Automated income</span></div><div id="facilities"></div></section>
+<section class="panel"><div class="sectionhead">🔬 Engineering research</div><div id="research"></div></section>
+<section class="panel"><div class="sectionhead">🌌 Explore new sectors</div><div class="small muted" style="margin-bottom:9px">New regions increase the output of your entire operation.</div><div id="sectors"></div></section>
+<section class="panel"><div class="sectionhead">📋 Expedition log</div><div class="log muted" id="log">Your first salvage ship is ready. Let's get to work.</div><div class="bar"><div class="fill" id="progress"></div></div><div class="small muted" id="next-goal" style="margin-top:8px">Next milestone: recover 100 scrap</div></section>
+<div class="footer small muted"><span>Progress saves automatically on this device.</span><button id="reset">Reset game</button></div>
+</main>
+<script>
+(()=>{
+const $=id=>document.getElementById(id);
+const facilities=[
+{name:'Scout Drone',icon:'🤖',desc:'Small drones collect loose debris.',base:15,rate:.2},
+{name:'Salvage Skiff',icon:'🚀',desc:'A crewed ship strips wreckage.',base:110,rate:1.5},
+{name:'Smelter Platform',icon:'🏭',desc:'Turns wreckage into valuable scrap.',base:850,rate:9},
+{name:'Orbital Foundry',icon:'🛠️',desc:'A huge automated manufacturing station.',base:6500,rate:55}
+];
+const research=[
+{name:'Magnetic Cutter',desc:'Double your scrap per tap.',cost:60,apply:g=>g.tap*=2},
+{name:'Twin Rotor Drones',desc:'Scout Drones produce twice as much.',cost:350,apply:g=>g.mult[0]*=2},
+{name:'Thermal Recycling',desc:'All facilities produce 50% more.',cost:2800,apply:g=>g.global*=1.5},
+{name:'Deep-Space Scanners',desc:'Salvage Skiffs produce twice as much.',cost:19000,apply:g=>g.mult[1]*=2},
+{name:'Quantum Forging',desc:'Orbital Foundries produce twice as much.',cost:125000,apply:g=>g.mult[3]*=2}
+];
+const sectors=[
+{name:'Lunar Wreckfield',cost:1200,mult:1.5,icon:'🌙',desc:'Abandoned lunar satellites'},
+{name:'Mars Graveyard',cost:18000,mult:2,icon:'🔴',desc:'Old exploration vessels'},
+{name:'Jupiter Scrapyard',cost:260000,mult:3,icon:'🪐',desc:'A field of enormous wrecks'}
+];
+const fresh=()=>({scrap:0,lifetime:0,tap:1,counts:[0,0,0,0],mult:[1,1,1,1],global:1,researched:[],sector:0,unlocked:[true,false,false,false],milestones:[]});
+let g=fresh();
+try{const saved=JSON.parse(localStorage.getItem('orbit_foundry_save'));if(saved&&Array.isArray(saved.counts)&&saved.counts.length===4)g={...fresh(),...saved};}catch(e){}
+const fmt=n=>n>=1e9?(n/1e9).toFixed(2)+'B':n>=1e6?(n/1e6).toFixed(2)+'M':n>=1e3?(n/1e3).toFixed(1)+'K':(n<10?n.toFixed(1):Math.floor(n)).toString();
+const cost=i=>Math.floor(facilities[i].base*Math.pow(1.17,g.counts[i]));
+const rate=()=>facilities.reduce((a,f,i)=>a+f.rate*g.counts[i]*g.mult[i],0)*g.global*sectors[g.sector].mult;
+const gain=n=>{g.scrap+=n;g.lifetime+=n};
+function note(t){$('log').textContent=t}
+function render(){
+$('scrap').textContent=fmt(g.scrap);$('lifetime').textContent=fmt(g.lifetime);$('rate').textContent=fmt(rate())+' scrap / sec';
+$('tap-power').textContent='+'+fmt(g.tap*sectors[g.sector].mult)+' scrap per tap';
+$('sector-name').textContent=['Earth Orbit','Lunar Orbit','Mars Orbit','Jupiter Orbit'][g.sector];
+$('fleet').textContent=g.counts.reduce((a,b)=>a+b,0);$('expeditions').textContent=(g.sector+1)+' / 4';
+$('facilities').innerHTML=facilities.map((f,i)=>`<div class="item"><div class="iteminfo"><div class="itemname">${f.icon} ${f.name} <span class="muted small">×${g.counts[i]}</span></div><div class="itemdesc">${f.desc}</div><div class="itemdesc">+${fmt(f.rate*g.mult[i]*g.global*sectors[g.sector].mult)} / sec each</div></div><button class="buy" data-buy="${i}" ${g.scrap<cost(i)?'disabled':''}>Build<br>${fmt(cost(i))} scrap</button></div>`).join('');
+$('research').innerHTML=research.map((r,i)=>{let done=g.researched.includes(i);return `<div class="item"><div class="iteminfo"><div class="itemname">${done?'✅':'🧪'} ${r.name}</div><div class="itemdesc">${r.desc}</div></div><button class="buy" data-research="${i}" ${done||g.scrap<r.cost?'disabled':''}>${done?'Completed':fmt(r.cost)+' scrap'}</button></div>`}).join('');
+$('sectors').innerHTML=sectors.map((s,i)=>`<div class="item"><div class="iteminfo"><div class="itemname">${s.icon} ${s.name}</div><div class="itemdesc">${s.desc} · ×${s.mult} output</div></div><button class="buy" data-sector="${i}" ${g.unlocked[i]||g.scrap<s.cost?'disabled':''}>${g.unlocked[i]?'Unlocked':fmt(s.cost)+' scrap'}</button></div>`).join('');
+const goals=[100,1000,10000,100000,1000000];let idx=goals.findIndex(x=>g.lifetime<x),next=idx<0?null:goals[idx],prev=idx>0?goals[idx-1]:0;
+$('next-goal').textContent=next?'Next milestone: '+fmt(next)+' lifetime scrap':'All current milestones reached!';
+$('progress').style.width=next?Math.min(100,(g.lifetime-prev)/(next-prev)*100)+'%':'100%';
+goals.forEach((goal,i)=>{if(g.lifetime>=goal&&!g.milestones.includes(i)){g.milestones.push(i);let bonus=goal*.2;gain(bonus);note('Milestone reached! Bonus recovered: '+fmt(bonus)+' scrap.')}});
+try{localStorage.setItem('orbit_foundry_save',JSON.stringify(g))}catch(e){}
+}
+$('salvage').addEventListener('click',()=>{gain(g.tap*sectors[g.sector].mult);render()});
+$('facilities').addEventListener('click',e=>{let b=e.target.closest('[data-buy]');if(!b)return;let i=+b.dataset.buy,c=cost(i);if(g.scrap<c)return;g.scrap-=c;g.counts[i]++;note(facilities[i].name+' added to your fleet.');render()});
+$('research').addEventListener('click',e=>{let b=e.target.closest('[data-research]');if(!b)return;let i=+b.dataset.research,r=research[i];if(g.researched.includes(i)||g.scrap<r.cost)return;g.scrap-=r.cost;g.researched.push(i);r.apply(g);note('Research complete: '+r.name+'.');render()});
+$('sectors').addEventListener('click',e=>{let b=e.target.closest('[data-sector]');if(!b)return;let i=+b.dataset.sector,s=sectors[i];if(g.unlocked[i]||g.scrap<s.cost)return;g.scrap-=s.cost;g.unlocked[i]=true;g.sector=i;note('New sector explored: '+s.name+'! Production increased.');render()});
+$('reset').addEventListener('click',()=>{if(confirm('Reset your entire Orbit Foundry expedition? This cannot be undone.')){g=fresh();note('A new expedition begins.');render()}});
+setInterval(()=>{const income=rate();if(income>0)gain(income);render()},1000);
+render();
+})();
+</script>
+</body>
+</html>
